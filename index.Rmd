@@ -1,0 +1,512 @@
+---
+title: "Saúde"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    self_contained: FALSE
+    theme: flatly
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      fig.height = 4, dev = 'jpeg')
+```
+
+
+```{r, include=FALSE}
+
+setwd("D:/Github/basesuffs/basesaude")
+library(read.dbc)
+library(microdatasus)
+library(readr)
+library(readxl)
+library(dplyr)
+library(stringr)
+library(leaflet)
+
+
+# Extraindo a base CNES leitos
+leitos.cnes <- fetch_datasus(year_start = 2020, month_start = 8,
+                              year_end = 2020, month_end = 8,
+                              uf = "RS",
+                              information_system = "CNES-LT")
+
+equip.cnes <- fetch_datasus(year_start = 2020, month_start = 8,
+                              year_end = 2020, month_end = 8,
+                              uf = "RS",
+                              information_system = "CNES-EQ")
+
+
+estab.cnes <- fetch_datasus(year_start = 2020, month_start = 8,
+                              year_end = 2020, month_end = 8,
+                              uf = "RS",
+                              information_system = "CNES-ST")
+
+# Pasta TAB_DBF
+library(foreign)
+x.gestao <- read.dbf("D:/Github/basesuffs/basesaude2/TAB_CNES/TAB_DBF/GESTAO.dbf")
+x.equipe <- read.dbf("D:/Github/basesuffs/basesaude2/TAB_CNES/TAB_DBF/EQUIPE.dbf")
+x.eqp_rs <- read.dbf("D:/Github/basesuffs/basesaude2/TAB_CNES/TAB_DBF/EQP_RS.dbf")
+x.hospital = read.dbf("D:/Github/basesuffs/basesaude2/TAB_CNES/TAB_DBF/CADGERRS.dbf")
+# x.tpestab <- read_delim("TAB_CNES/TAB_DBF/TP_ESTAB.csv", ";", escape_double = FALSE, trim_ws = TRUE)
+library(readxl)
+x.tpestab <- as.data.frame(read_excel("D:/Github/basesuffs/basesaude2/TAB_CNES/TAB_DBF/TP_ESTAB.xls"))
+names(x.tpestab)[1] = "estab"
+names(x.tpestab)[2] = "tp_unid"
+x.tpestab$tp_unid = as.factor(x.tpestab$tp_unid)
+
+# Transformando para minúscula os nomes de variáveis
+names(leitos.cnes) = tolower(names(leitos.cnes))
+names(equip.cnes) = tolower(names(equip.cnes))
+names(estab.cnes) = tolower(names(estab.cnes))
+names(x.gestao) = tolower(names(x.gestao))
+names(x.equipe) = tolower(names(x.equipe))
+names(x.eqp_rs) = tolower(names(x.eqp_rs))
+names(x.hospital) = tolower(names(x.hospital))
+
+# Pasta BASE_DE_DADOS_CNES_202009
+x.leito = data.frame(read_delim("D:/Github/basesuffs/basesaude2/BASE_DE_DADOS_CNES_202009/tbLeito202009.csv", 
+    ";", escape_double = FALSE, col_types = cols(TIPEQUIP = col_factor(), CODEQUIP = col_factor()),locale = locale(encoding = "ISO-8859-1"), trim_ws = TRUE))
+
+
+# Pasta doc
+x.equip = data.frame(read_delim("doc/equip.csv", 
+    ";", escape_double = FALSE, col_types = cols(TIPEQUIP = col_factor(), CODEQUIP = col_factor()),locale = locale(encoding = "ISO-8859-1"), trim_ws = TRUE))
+
+x.reg.saude <- data.frame(read_delim("doc/reg_saude_mun.csv", ";",locale = locale(encoding = "ISO-8859-1")))
+x.hosp = data.frame(read_csv("doc/CADGERRS.csv",locale = locale(encoding = "ISO-8859-1")))
+# PASTA "Tab_CMD"
+x.codleito = data.frame(read_delim("doc/CODLEITO.csv", 
+    ";", escape_double = FALSE, col_types = cols(CODLEITO = col_double()),locale = locale(encoding = "ISO-8859-1"), 
+    trim_ws = TRUE))
+x.coredes = data.frame(read_delim("doc/coredes.csv", 
+    ";", escape_double = FALSE, locale = locale(encoding = "ISO-8859-1"), trim_ws = TRUE))
+x.coredes$codufmun=substr(x.coredes$CODUFMUN,1,6)
+x.coredes$corede = as.factor(x.coredes$COREDE)
+x.rf =  data.frame(read_delim("doc/rf.csv", 
+    ";", escape_double = FALSE, locale = locale(encoding = "ISO-8859-1")))
+
+x.pop <- data.frame(na.omit(read_delim("doc/populacao.csv", ";", skip = 3,locale = locale(encoding = "ISO-8859-1"))))
+x.pop = x.pop %>% filter(str_starts(CODUFMUN, "43"))
+x.pop$CODUFMUN = as.factor(x.pop$CODUFMUN)
+x.pop = tidyr::gather(x.pop, "ANO","POPULACAO", 3:30)
+x.pop$ANO = as.factor(substr(x.pop$ANO,2,5))
+x.pop = x.pop %>% filter(ANO == 2019)
+x.pop$POPULACAO = as.numeric(x.pop$POPULACAO)
+
+# Transformando para minúscula os nomes de variáveis
+names(x.equip) = tolower(names(x.equip))
+names(x.reg.saude) = tolower(names(x.reg.saude))
+names(x.hosp) = tolower(names(x.hosp))
+names(x.codleito) = tolower(names(x.codleito))
+names(x.coredes) = tolower(names(x.coredes))
+names(x.rf) = tolower(names(x.rf))
+names(x.leito) = tolower(names(x.leito))
+names(x.pop) = tolower(names(x.pop))
+
+variables_names <- names(leitos.cnes)
+if("tpgestao" %in% variables_names){
+    leitos.cnes$tpgestao <- as.character(levels(leitos.cnes$tpgestao))[leitos.cnes$tpgestao]
+    leitos.cnes$tpgestao[leitos.cnes$tpgestao=="D"] <- "DUPLA"
+    leitos.cnes$tpgestao[leitos.cnes$tpgestao=="E"] <- "ESTADUAL"
+    leitos.cnes$tpgestao[leitos.cnes$tpgestao=="M"] <- "MUNICIPAL"
+    leitos.cnes$tpgestao[leitos.cnes$tpgestao=="Z"] <- "SEM GESTAO"
+    leitos.cnes$tpgestao[leitos.cnes$tpgestao=="S"] <- "SEM GESTAO"
+    leitos.cnes$tpgestao <- factor(leitos.cnes$tpgestao)
+}
+
+
+if("tp_leito" %in% variables_names){
+    leitos.cnes$tp_leito <- as.character(levels(leitos.cnes$tp_leito))[leitos.cnes$tp_leito]
+    leitos.cnes$tp_leito[leitos.cnes$tp_leito=="1"] <- "CIRURGICO"
+    leitos.cnes$tp_leito[leitos.cnes$tp_leito=="2"] <- "CLINICO"
+    leitos.cnes$tp_leito[leitos.cnes$tp_leito=="3"] <- "OBSTETRICOS"
+    leitos.cnes$tp_leito[leitos.cnes$tp_leito=="4"] <- "PEDIATRICOS"
+    leitos.cnes$tp_leito[leitos.cnes$tp_leito=="5"] <- "OUTRAS ESPECIALIDADES"
+    leitos.cnes$tp_leito[leitos.cnes$tp_leito=="6"] <- "HOSPITAL DIA"
+    leitos.cnes$tp_leito[leitos.cnes$tp_leito=="7"] <- "COMPLEMENTAR"
+    leitos.cnes$tp_leito <- factor(leitos.cnes$tp_leito)
+}
+
+colnames(leitos.cnes)[23] = "qtexist"
+colnames(leitos.cnes)[24] = "qtcontr"
+colnames(leitos.cnes)[25] = "qtsus"
+colnames(leitos.cnes)[26] = "qtnsus"
+
+
+
+
+
+```
+
+```{r, include=FALSE}
+# Fatorização
+to.factors <- function(df, variables){
+  for (variable in variables){
+    df[[variable]] <- as.factor(df[[variable]])
+  }
+  return(df)
+}
+
+# Número
+to.numeric <- function(df, variables){
+  for (variable in variables){
+    df[[variable]] <- as.numeric(df[[variable]])
+  }
+  return(df)
+}
+
+# Data
+library(lubridate)
+to.date <- function(df, variables){
+  for (variable in variables){
+    df[[variable]] <- dmy(df[[variable]])
+  }
+  return(df)
+}
+
+
+leitos.cnes$ano = substr(leitos.cnes$competen,1,4)
+leitos.cnes$mes = substr(leitos.cnes$competen,5,6)
+x.coredes$codufmun = as.factor(substr(x.coredes$codufmun,1,6))
+
+## Codificando a base
+leitos.cnes$id = paste(leitos.cnes$ano,leitos.cnes$codufmun)
+leitos.cnes$municipio = x.coredes[match(as.factor(leitos.cnes$codufmun), as.factor(x.coredes$codufmun)),"municipio"]
+leitos.cnes$corede = x.coredes[match(as.factor(leitos.cnes$codufmun), as.factor(x.coredes$codufmun)),"corede"]
+leitos.cnes$rf = x.rf[match(as.factor(leitos.cnes$municipio), as.factor(x.rf$municipio)),"rf"]
+leitos.cnes$regsaude = x.reg.saude[match(as.factor(leitos.cnes$municipio), as.factor(x.rf$municipio)),"reg_saude"]
+leitos.cnes$hospital = as.factor(x.hospital[match(leitos.cnes$cpf_cnpj, as.factor(x.hospital$cpf_cnpj)),"fantasia"])
+leitos.cnes$leito = as.factor(x.codleito[match(leitos.cnes$codleito, as.factor(x.leito$co_leito)),"leito"])
+leitos.cnes$unidade = as.factor(x.tpestab[match(leitos.cnes$tp_unid, x.tpestab$tp_unid),"estab"])
+leitos.cnes$populacao = x.pop[match(leitos.cnes$codufmun, x.pop$codufmun),"populacao"]
+leitos.cnes$populacao = as.numeric(leitos.cnes$populacao)
+```
+
+
+```{r, include=FALSE}
+# Carregando dados geográficos
+library(geobr)
+library(tmap)
+state <- read_state()
+state.rs <- read_state(code_state="RS", year=2018)
+
+data("World")
+# Criando o minimapa
+minimapa = tm_shape(World, projection = "+proj=gall", bbox = "Brasil")+
+  tm_polygons(col="white")+ 
+    tm_layout(frame = TRUE, main.title="LOCALIZAÇÃO DO ESTADO NO PAÍS", main.title.size = .5)+
+    # tm_text("iso_a3") + tm_legend(show=FALSE)+
+  tm_shape(state)+
+  tm_polygons()+
+  # tm_compass(position=c("right", "bottom"))+
+  # tm_scale_bar(position=c("right", "bottom"))+
+  tm_shape(state.rs)+
+  tm_polygons(col="red")
+
+
+library(raster)
+library(stringr)
+
+# Carregando o arquivo
+mapars <- sf::st_read("doc/rs_municipios/43MUE250GC_SIR.shp", quiet = TRUE)
+# mapars=shapefile("doc/rs_municipios/43MUE250GC_SIR.shp")
+# colnames(MAPARS@data[2]) = "CODUFMUN"
+names(mapars) = tolower(names(mapars))
+
+# Excluindo dados inconvenientes
+mapars=mapars[mapars$cd_geocmu !="4300001" & mapars$cd_geocmu !="4300002",]
+# Corrigindo os dados do código IBGE dos municípios
+mapars$cd_geocmu=substr(mapars$cd_geocmu,1,6)
+names(mapars)[2] = "codufmun"
+# plot(mapars)
+```
+
+
+Competência: Agosto/2020
+
+Estabelecimentos
+=======================================================================
+
+
+
+
+
+Row {.tabset .tabset-fade}
+-------------------------------------
+   
+### Hospitais
+
+```{r, include=TRUE, echo = FALSE}
+tab.leitos.mun.hosp = leitos.cnes %>% 
+    dplyr::select("codufmun","municipio","hospital","cpf_cnpj","qtexist","qtsus","qtnsus","regsaude","populacao","id") %>%
+    group_by(codufmun,municipio,hospital) %>%
+      summarise("qtexist" = sum(qtexist),
+              "qtsus" = sum(qtsus),
+              "qtnsus" = sum(qtnsus)) %>%
+  mutate("porte" = ifelse(qtexist <= 30,"pequeno",
+                               ifelse(qtexist <=150,"medio","grande"))) %>%
+  left_join(x.rf, by = "municipio")
+
+tab.leitos.mun.hosp1 = tab.leitos.mun.hosp %>% 
+  # dplyr::select("codufmun","municipio","hospital","qtexist","qtsus","qtnsus","porte","unidade") %>%
+  # filter(unidade %in% c("HOSPITAL ESPECIALIZADO","HOSPITAL GERAL","HOSPITAL/DIA - ISOLADO","PRONTO SOCORRO ESPECIALIZADO","PRONTO SOCORRO GERAL")) %>%
+  group_by(codufmun,municipio,porte)%>%
+  # summarise("PORTE" = length(PORTE)) %>%
+  summarise(n= n()) %>%
+  ungroup() %>%
+  tidyr::spread(porte, n, fill=0)
+
+tab.leitos.mun.hosp1  = x.pop %>%
+  left_join(tab.leitos.mun.hosp1, by = "codufmun") %>%
+  dplyr::select(-c("ano","municipio.y")) %>%
+  rename(municipio = municipio.x) %>%
+  mutate(grande = ifelse(grande ==0,NA, grande),
+         medio = ifelse(medio ==0,NA, medio),
+         pequeno = ifelse(pequeno ==0,NA, pequeno)) %>%
+  rowwise() %>% 
+  mutate(total = sum(grande, medio, pequeno, na.rm=TRUE)) %>%
+  mutate(total = ifelse(total ==0,NA, total)) %>%
+  left_join(x.rf, by = "municipio")
+
+# knitr::kable(tab.leitos.mun.hosp1) %>% kable_classic(full_width = F, html_font = "Cambria") %>%
+#   kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+
+DT::datatable(tab.leitos.mun.hosp1,
+              caption = 'Número de instituições por município, SUS e Não-SUS por porte - RS', 
+              # filter = 'top', 
+              editable = TRUE,
+              extensions = 'Buttons',
+              options = list(dom = 'Bfrtip', 
+                             pageLength = nrow(tab.leitos.mun.hosp1),
+                             paging = FALSE,
+                             buttons = c('csv', 'pdf',"excel")))
+```
+
+
+
+### Mapa
+
+```{r, include=TRUE, echo = FALSE}
+tab.leitos.mun.hosp2 = x.pop %>%
+  left_join(tab.leitos.mun.hosp1, by = "codufmun") %>%
+  dplyr::select(-c("ano","municipio.y","populacao.y")) %>%
+  rename(populacao = populacao.x)
+  
+
+mapars.portes = merge(mapars, tab.leitos.mun.hosp2, by="codufmun", all.x=T)
+
+mapars.portes1 =  tm_shape(mapars.portes)+
+  tm_fill(c("total","grande","medio","pequeno"), auto.palette.mapping=FALSE, 
+          #style="kmeans",
+          # breaks= 
+          #   list(NULL, c(1,5,10,20,Inf), c(1,5,10,20,Inf),
+          #    quantile(mapars.portes$TOTAL, na.rm=TRUE),
+          #    c(1,5,10,Inf),
+          #    c(1,5,10,Inf),
+          #   c(1,5,10,20,Inf)
+          #   ),
+          textNA = "Zero", colorNA = "grey", 
+          title=c("Total hospitais por município", 
+                  "Hospitais de grande porte",
+                  "Hospitais de médio porte",
+                  "Hospitais de pequeno porte"),
+          # palette="Blues",
+          palette=c("Blues"),  id="municipio",
+          style="cont",
+          # ,legend.hist = T, legend.hist.width = .5
+  )+
+  # tm_grid(labels.cardinal = TRUE,lines = FALSE)+
+   # tm_basemap(leaflet::providers$Stamen.Watercolor)+
+  tm_compass(position=c("right", "bottom"))+
+  tm_scale_bar(position=c("right", "bottom"))+
+  # tm_text("QTEXIST", scale=0.75)+
+  tm_borders(alpha=.5)+
+  tm_text(c("total","grande","medio","pequeno"),scale=.6 )+
+  tm_layout(frame = FALSE)+
+  tm_layout(
+    # legend.hist.size = 0.5, legend.outside = T,
+    # main.title="(b) Variação absoluta população entre 2007-2015",
+    main.title.position = 'left',
+    main.title.size=1,
+    inner.margins = c(0, .02, .02, .02))+
+  tm_legend(legend.format = list(text.separator= "a", 
+                                 text.or.more="ou maior",
+                                 text.less.than="menor que",
+                                 fun=function(x) formatC(x, digits=0, format="d")),
+            position=c("left", "top"), compass.type="8star")
+  #   tm_shape(mapas.leitos.regsaude) +
+  # tm_borders("black", lwd=2)
+  
+
+
+mapars.portes1
+
+```
+
+Leitos
+=======================================================================
+
+Row {.tabset .tabset-fade}
+-------------------------------------
+   
+### Leitos por município 
+
+
+```{r, include=TRUE, echo = FALSE}
+
+
+tab.leitos.mun = leitos.cnes %>% 
+    dplyr::select("codufmun","municipio","hospital","leito","qtexist","qtsus","qtnsus","populacao","rf") %>%
+    group_by(codufmun, municipio) %>%
+    summarise("qtexist" = sum(qtexist),
+              "qtsus" = sum(qtsus),
+              "qtnsus" = sum(qtnsus),
+              "populacao" = sum(unique(as.numeric(populacao))),
+              total10mil = round(sum(qtexist)*10000/as.numeric(populacao),2),
+              total10mil.sus = round(sum(qtsus)*10000/as.numeric(populacao),2),
+              total10mil.nsus = round(sum(qtnsus)*10000/as.numeric(populacao),2))
+
+# tab.leitos.mun = merge(x.pop2020corede, tab.leitos.mun, by="CODUFMUN", all=T)
+
+tab.leitos.mun  = x.pop %>%
+  left_join(tab.leitos.mun, by = "codufmun") %>%
+  dplyr::select(-c("ano","municipio.y","populacao.y")) %>%
+  rename(municipio = municipio.x,
+         populacao = populacao.x)
+
+
+tab.leitos.mun[is.na(tab.leitos.mun)] = 0
+tab.leitos.mun$qtexist.na = ifelse(tab.leitos.mun$qtexist == 0, NA,
+                                   tab.leitos.mun$qtexist)
+tab.leitos.mun$qtsus.na = ifelse(tab.leitos.mun$qtsus == 0, NA,
+                                   tab.leitos.mun$qtsus)
+tab.leitos.mun$qtnsus.na = ifelse(tab.leitos.mun$qtnsus == 0, NA,
+                                   tab.leitos.mun$qtnsus)
+
+tab.leitos.mun$total10mil.na = ifelse(tab.leitos.mun$total10mil == 0, NA,
+                                   tab.leitos.mun$total10mil)
+tab.leitos.mun$total10mil.sus.na = ifelse(tab.leitos.mun$total10mil.sus == 0, NA,
+                                   tab.leitos.mun$total10mil.sus)
+tab.leitos.mun$total10mil.nsus.na = ifelse(tab.leitos.mun$total10mil.nsus == 0, NA,
+                                   tab.leitos.mun$total10mil.nsus)
+
+
+tab.leitos.mun$populacao = as.numeric(tab.leitos.mun$populacao)
+
+tab.leitos.mun  = tab.leitos.mun %>%
+  left_join(x.rf, by = "municipio") 
+  # dplyr::select(-c("municipio.y","populacao.y","rf.y")) %>%
+  # rename(MUNICIPIO = MUNICIPIO.x,
+         # RF = RF.x,
+         # populacao = POPULACAO.x)
+
+# knitr::kable(tab.leitos.mun)
+
+DT::datatable(tab.leitos.mun[,-c(13,14,15)],
+              caption = 'Número de leitos município - RS', 
+              # filter = 'top', 
+              editable = TRUE,
+              extensions = 'Buttons',
+              options = list(dom = 'Bfrtip', 
+                             pageLength = nrow(tab.leitos.mun),
+                             paging = FALSE,
+                             buttons = c('csv', 'pdf',"excel")))
+```
+
+
+### Mapa leitos SUS e Não-SUS
+
+```{r, include=TRUE, echo = FALSE}
+library(htmlwidgets)
+mapars.leitos = merge(mapars, tab.leitos.mun, by="codufmun", all.x=T)
+
+mapars.leitos1 = 
+  
+  tm_shape(mapars.leitos)+
+  tm_fill(c("qtexist.na"
+            # ,"qtsus.na"
+            # ,"qtnsus.na"
+            ), auto.palette.mapping=FALSE, id="municipio",
+          #style="kmeans",
+          title="Leitos existentes, SUS e Não-SUS",
+          popup.vars = c("qtexist"= "qtexist.na",
+                         "qtsus"= "qtsus.na",
+                         "qtnsus" = "qtnsus.na"),
+          breaks=quantile(tab.leitos.mun$qtexist.na, na.rm=TRUE), textNA = "Zero", colorNA = "red",
+          # title=c("Leitos existentes", "Leitos SUS existentes", "Leitos não SUS existentes"),
+          # palette="Blues",
+          palette=c("Blues"),
+          style="kmeans",
+          # ,legend.hist = T, legend.hist.width = .5
+  )+
+  tm_compass(position=c("right", "bottom"))+
+  tm_scale_bar(position=c("right", "bottom"))+
+  tm_borders(alpha=.5)+
+  tm_layout(frame = FALSE)+
+  tm_layout(
+
+    main.title.position = 'left',
+    main.title.size=1,
+    inner.margins = c(0, .02, .02, .02))+
+  tm_legend(legend.format = list(text.separator= "a", 
+                                 text.or.more="ou maior",
+                                 text.less.than="menor que",
+                                 fun=function(x) formatC(x, digits=0, format="d")),
+            position=c("left", "top"), compass.type="8star")
+  #   tm_shape(mapas.leitos.regsaude) +
+  # tm_borders("black", lwd=2)
+  # 
+tmap_leaflet(mapars.leitos1) %>% clearControls() 
+
+```
+
+Row {.tabset .tabset-fade}
+-------------------------------------
+   
+### (leitos x município x porte) 
+
+
+
+```{r, include=TRUE, echo = FALSE}
+library(kableExtra)
+library(DT)
+
+# 
+# knitr::kable(tab.leitos.mun.hosp) %>% kable_classic(full_width = F, html_font = "Cambria") %>%
+#   kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"))
+
+DT::datatable(tab.leitos.mun.hosp,
+              caption = 'Número de leitos por instituição, SUS e Não-SUS por porte - RS', 
+              # filter = 'top', 
+              editable = TRUE,
+              extensions = 'Buttons',
+              options = list(dom = 'Bfrtip', 
+                             pageLength = nrow(tab.leitos.mun.hosp),
+                             paging = FALSE,
+                             buttons = c('csv', 'pdf',"excel")))
+```
+
+### Mapa
+
+
+
+
+Equipamentos
+=======================================================================
+
+Profissionais
+=======================================================================
+
+Sobre
+=======================================================================
+
+### Autores
+
+**Felipe Micail da Silva Smolski**
+
+**Edemar Rotta**
+
+**Carine Pereira**
+
+
