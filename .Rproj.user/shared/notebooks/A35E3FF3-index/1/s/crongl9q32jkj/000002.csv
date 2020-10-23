@@ -1,0 +1,27 @@
+"0","library(kableExtra)"
+"2","
+Attaching package: ëkableExtraí
+
+"
+"2","The following object is masked from ëpackage:dplyrí:
+
+    group_rows
+
+"
+"0","library(DT)"
+"0",""
+"0","# "
+"0","# knitr::kable(tab.leitos.mun.hosp) %>% kable_classic(full_width = F, html_font = ""Cambria"") %>%"
+"0","#   kable_styling(bootstrap_options = c(""striped"", ""hover"", ""condensed"", ""responsive""))"
+"0",""
+"0","DT::datatable(tab.leitos.mun.hosp,"
+"0","              caption = 'N√∫mero de leitos por institui√ß√£o, SUS e N√£o-SUS por porte - RS', "
+"0","              # filter = 'top', "
+"0","              editable = FALSE,"
+"0","              extensions = 'Buttons',"
+"0","              options = list(dom = 'Bfrtip', "
+"0","                             pageLength = nrow(tab.leitos.mun.hosp),"
+"0","                             paging = FALSE,"
+"0","                             buttons = c('csv', 'pdf',""excel"")))"
+"2","It seems your data is too big for client-side DataTables. You may consider server-side processing: https://rstudio.github.io/DT/server.html"
+"2","It seems your data is too big for client-side DataTables. You may consider server-side processing: https://rstudio.github.io/DT/server.html"

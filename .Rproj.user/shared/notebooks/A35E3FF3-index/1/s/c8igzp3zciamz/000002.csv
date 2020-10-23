@@ -1,0 +1,216 @@
+"0",""
+"0","setwd(""D:/Github/basesuffs/basesaude"")"
+"2","The working directory was changed to D:/Github/basesuffs/basesaude inside a notebook chunk. The working directory will be reset when the chunk is finished running. Use the knitr root.dir option in the setup chunk to change the working directory for notebook chunks."
+"0","library(read.dbc)"
+"0","library(microdatasus)"
+"0","library(readr)"
+"0","library(readxl)"
+"0","library(dplyr)"
+"2","
+Attaching package: ëdplyrí
+
+"
+"2","The following objects are masked from ëpackage:statsí:
+
+    filter, lag
+
+"
+"2","The following objects are masked from ëpackage:baseí:
+
+    intersect, setdiff, setequal, union
+
+"
+"0","library(stringr)"
+"0","library(leaflet)"
+"2","Registered S3 method overwritten by 'htmlwidgets':
+  method           from         
+  print.htmlwidget tools:rstudio
+"
+"0","# Extraindo a base CNES leitos"
+"0","leitos.cnes <- fetch_datasus(year_start = 2020, month_start = 8,"
+"0","                              year_end = 2020, month_end = 8,"
+"0","                              uf = ""RS"","
+"0","                              information_system = ""CNES-LT"")"
+"2","tentando a URL 'ftp://ftp.datasus.gov.br/dissemin/publicos/CNES/200508_/Dados/LT/LTRS2008.dbc'
+"
+"2","downloaded 35 KB
+
+"
+"0","equip.cnes <- fetch_datasus(year_start = 2020, month_start = 8,"
+"0","                              year_end = 2020, month_end = 8,"
+"0","                              uf = ""RS"","
+"0","                              information_system = ""CNES-EQ"")"
+"2","tentando a URL 'ftp://ftp.datasus.gov.br/dissemin/publicos/CNES/200508_/Dados/EQ/EQRS2008.dbc'
+"
+"2","downloaded 436 KB
+
+"
+"0","estab.cnes <- fetch_datasus(year_start = 2020, month_start = 8,"
+"0","                              year_end = 2020, month_end = 8,"
+"0","                              uf = ""RS"","
+"0","                              information_system = ""CNES-ST"")"
+"2","tentando a URL 'ftp://ftp.datasus.gov.br/dissemin/publicos/CNES/200508_/Dados/ST/STRS2008.dbc'
+"
+"2","downloaded 1.2 MB
+
+"
+"0","# Pasta TAB_DBF"
+"0","library(foreign)"
+"0","x.gestao <- read.dbf(""D:/Github/basesuffs/basesaude2/TAB_CNES/TAB_DBF/GESTAO.dbf"")"
+"0","x.equipe <- read.dbf(""D:/Github/basesuffs/basesaude2/TAB_CNES/TAB_DBF/EQUIPE.dbf"")"
+"0","x.eqp_rs <- read.dbf(""D:/Github/basesuffs/basesaude2/TAB_CNES/TAB_DBF/EQP_RS.dbf"")"
+"0","x.hospital = read.dbf(""D:/Github/basesuffs/basesaude2/TAB_CNES/TAB_DBF/CADGERRS.dbf"")"
+"0","# x.tpestab <- read_delim(""TAB_CNES/TAB_DBF/TP_ESTAB.csv"", "";"", escape_double = FALSE, trim_ws = TRUE)"
+"0","library(readxl)"
+"0","x.tpestab <- as.data.frame(read_excel(""D:/Github/basesuffs/basesaude2/TAB_CNES/TAB_DBF/TP_ESTAB.xls""))"
+"0","names(x.tpestab)[1] = ""estab"""
+"0","names(x.tpestab)[2] = ""tp_unid"""
+"0","x.tpestab$tp_unid = as.factor(x.tpestab$tp_unid)"
+"0",""
+"0","# Transformando para min√∫scula os nomes de vari√°veis"
+"0","names(leitos.cnes) = tolower(names(leitos.cnes))"
+"0","names(equip.cnes) = tolower(names(equip.cnes))"
+"0","names(estab.cnes) = tolower(names(estab.cnes))"
+"0","names(x.gestao) = tolower(names(x.gestao))"
+"0","names(x.equipe) = tolower(names(x.equipe))"
+"0","names(x.eqp_rs) = tolower(names(x.eqp_rs))"
+"0","names(x.hospital) = tolower(names(x.hospital))"
+"0",""
+"0","# Pasta BASE_DE_DADOS_CNES_202009"
+"0","x.leito = data.frame(read_delim(""D:/Github/basesuffs/basesaude2/BASE_DE_DADOS_CNES_202009/tbLeito202009.csv"", "
+"0","    "";"", escape_double = FALSE, col_types = cols(TIPEQUIP = col_factor(), CODEQUIP = col_factor()),locale = locale(encoding = ""ISO-8859-1""), trim_ws = TRUE))"
+"2","The following named parsers don't match the column names: TIPEQUIP, CODEQUIP"
+"0","# Pasta doc"
+"0","x.equip = data.frame(read_delim(""doc/equip.csv"", "
+"0","    "";"", escape_double = FALSE, col_types = cols(TIPEQUIP = col_factor(), CODEQUIP = col_factor()),locale = locale(encoding = ""ISO-8859-1""), trim_ws = TRUE))"
+"0",""
+"0","x.reg.saude <- data.frame(read_delim(""doc/reg_saude_mun.csv"", "";"",locale = locale(encoding = ""ISO-8859-1"")))"
+"2","Parsed with column specification:
+cols(
+  CODUFMUN = [32mcol_double()[39m,
+  CO_REGSAUD = [32mcol_double()[39m,
+  REG_SAUDE = [31mcol_character()[39m
+)
+"
+"0","x.hosp = data.frame(read_csv(""doc/CADGERRS.csv"",locale = locale(encoding = ""ISO-8859-1"")))"
+"2","Parsed with column specification:
+cols(
+  .default = col_character(),
+  LOGRADOU = [33mcol_logical()[39m,
+  NUM_END = [33mcol_logical()[39m,
+  COMPLEME = [33mcol_logical()[39m,
+  BAIRRO = [33mcol_logical()[39m,
+  COD_CEP = [33mcol_logical()[39m,
+  TELEFONE = [33mcol_logical()[39m,
+  FAX = [33mcol_logical()[39m,
+  EMAIL = [33mcol_logical()[39m,
+  CODUFMUN = [32mcol_double()[39m,
+  EXCLUIDO = [32mcol_double()[39m,
+  DATAINCL = [32mcol_double()[39m,
+  DATAEXCL = [32mcol_double()[39m
+)
+"
+"2","See spec(...) for full column specifications.
+"
+"0","# PASTA ""Tab_CMD"""
+"0","x.codleito = data.frame(read_delim(""doc/CODLEITO.csv"", "
+"0","    "";"", escape_double = FALSE, col_types = cols(CODLEITO = col_double()),locale = locale(encoding = ""ISO-8859-1""), "
+"0","    trim_ws = TRUE))"
+"0","x.coredes = data.frame(read_delim(""doc/coredes.csv"", "
+"0","    "";"", escape_double = FALSE, locale = locale(encoding = ""ISO-8859-1""), trim_ws = TRUE))"
+"2","Parsed with column specification:
+cols(
+  MUNICIPIO = [31mcol_character()[39m,
+  COREDE = [31mcol_character()[39m,
+  CODUFMUN = [32mcol_double()[39m,
+  AREA_KM2 = [32mcol_number()[39m
+)
+"
+"0","x.coredes$codufmun=substr(x.coredes$CODUFMUN,1,6)"
+"0","x.coredes$corede = as.factor(x.coredes$COREDE)"
+"0","x.rf =  data.frame(read_delim(""doc/rf.csv"", "
+"0","    "";"", escape_double = FALSE, locale = locale(encoding = ""ISO-8859-1"")))"
+"2","Parsed with column specification:
+cols(
+  MUNICIPIO = [31mcol_character()[39m,
+  RF = [31mcol_character()[39m
+)
+"
+"0","x.pop <- data.frame(na.omit(read_delim(""doc/populacao.csv"", "";"", skip = 3,locale = locale(encoding = ""ISO-8859-1""))))"
+"2","Parsed with column specification:
+cols(
+  .default = col_character(),
+  CODUFMUN = [32mcol_double()[39m,
+  `2012` = [32mcol_double()[39m,
+  `2013` = [32mcol_double()[39m,
+  `2014` = [32mcol_double()[39m,
+  `2015` = [32mcol_double()[39m,
+  `2016` = [32mcol_double()[39m,
+  `2017` = [32mcol_double()[39m,
+  `2018` = [32mcol_double()[39m,
+  `2019` = [32mcol_double()[39m,
+  `2020` = [32mcol_double()[39m
+)
+"
+"2","See spec(...) for full column specifications.
+"
+"2","10 parsing failures.
+ row      col expected actual                file
+5571 CODUFMUN a double  Fonte 'doc/populacao.csv'
+5572 CODUFMUN a double  Notas 'doc/populacao.csv'
+5573 CODUFMUN a double  Total 'doc/populacao.csv'
+5575 CODUFMUN a double  Para  'doc/populacao.csv'
+5576 CODUFMUN a double  proje 'doc/populacao.csv'
+.... ........ ........ ...... ...................
+See problems(...) for more details.
+"
+"0","x.pop = x.pop %>% filter(str_starts(CODUFMUN, ""43""))"
+"0","x.pop$CODUFMUN = as.factor(x.pop$CODUFMUN)"
+"0","x.pop = tidyr::gather(x.pop, ""ANO"",""POPULACAO"", 3:30)"
+"0","x.pop$ANO = as.factor(substr(x.pop$ANO,2,5))"
+"0","x.pop = x.pop %>% filter(ANO == 2019)"
+"0","x.pop$POPULACAO = as.numeric(x.pop$POPULACAO)"
+"0",""
+"0","# Transformando para min√∫scula os nomes de vari√°veis"
+"0","names(x.equip) = tolower(names(x.equip))"
+"0","names(x.reg.saude) = tolower(names(x.reg.saude))"
+"0","names(x.hosp) = tolower(names(x.hosp))"
+"0","names(x.codleito) = tolower(names(x.codleito))"
+"0","names(x.coredes) = tolower(names(x.coredes))"
+"0","names(x.rf) = tolower(names(x.rf))"
+"0","names(x.leito) = tolower(names(x.leito))"
+"0","names(x.pop) = tolower(names(x.pop))"
+"0",""
+"0","variables_names <- names(leitos.cnes)"
+"0","if(""tpgestao"" %in% variables_names){"
+"0","    leitos.cnes$tpgestao <- as.character(levels(leitos.cnes$tpgestao))[leitos.cnes$tpgestao]"
+"0","    leitos.cnes$tpgestao[leitos.cnes$tpgestao==""D""] <- ""DUPLA"""
+"0","    leitos.cnes$tpgestao[leitos.cnes$tpgestao==""E""] <- ""ESTADUAL"""
+"0","    leitos.cnes$tpgestao[leitos.cnes$tpgestao==""M""] <- ""MUNICIPAL"""
+"0","    leitos.cnes$tpgestao[leitos.cnes$tpgestao==""Z""] <- ""SEM GESTAO"""
+"0","    leitos.cnes$tpgestao[leitos.cnes$tpgestao==""S""] <- ""SEM GESTAO"""
+"0","    leitos.cnes$tpgestao <- factor(leitos.cnes$tpgestao)"
+"0","}"
+"0",""
+"0",""
+"0","if(""tp_leito"" %in% variables_names){"
+"0","    leitos.cnes$tp_leito <- as.character(levels(leitos.cnes$tp_leito))[leitos.cnes$tp_leito]"
+"0","    leitos.cnes$tp_leito[leitos.cnes$tp_leito==""1""] <- ""CIRURGICO"""
+"0","    leitos.cnes$tp_leito[leitos.cnes$tp_leito==""2""] <- ""CLINICO"""
+"0","    leitos.cnes$tp_leito[leitos.cnes$tp_leito==""3""] <- ""OBSTETRICOS"""
+"0","    leitos.cnes$tp_leito[leitos.cnes$tp_leito==""4""] <- ""PEDIATRICOS"""
+"0","    leitos.cnes$tp_leito[leitos.cnes$tp_leito==""5""] <- ""OUTRAS ESPECIALIDADES"""
+"0","    leitos.cnes$tp_leito[leitos.cnes$tp_leito==""6""] <- ""HOSPITAL DIA"""
+"0","    leitos.cnes$tp_leito[leitos.cnes$tp_leito==""7""] <- ""COMPLEMENTAR"""
+"0","    leitos.cnes$tp_leito <- factor(leitos.cnes$tp_leito)"
+"0","}"
+"0",""
+"0","colnames(leitos.cnes)[23] = ""qtexist"""
+"0","colnames(leitos.cnes)[24] = ""qtcontr"""
+"0","colnames(leitos.cnes)[25] = ""qtsus"""
+"0","colnames(leitos.cnes)[26] = ""qtnsus"""
+"0",""
+"0",""
+"0",""
+"0",""
+"0",""

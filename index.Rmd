@@ -15,7 +15,7 @@ knitr::opts_chunk$set(echo = TRUE,
 
 ```{r, include=FALSE}
 
-setwd("D:/Github/basesuffs/basesaude")
+setwd("D:/Github/basesuffs/DadosDRNoroeste/basesaude")
 library(read.dbc)
 library(microdatasus)
 library(readr)
@@ -275,7 +275,7 @@ tab.leitos.mun.hosp1  = x.pop %>%
 DT::datatable(tab.leitos.mun.hosp1,
               caption = 'Número de instituições por município, SUS e Não-SUS por porte - RS', 
               # filter = 'top', 
-              editable = TRUE,
+              editable = FALSE,
               extensions = 'Buttons',
               options = list(dom = 'Bfrtip', 
                              pageLength = nrow(tab.leitos.mun.hosp1),
@@ -406,7 +406,7 @@ tab.leitos.mun  = tab.leitos.mun %>%
 DT::datatable(tab.leitos.mun[,-c(13,14,15)],
               caption = 'Número de leitos município - RS', 
               # filter = 'top', 
-              editable = TRUE,
+              editable = FALSE,
               extensions = 'Buttons',
               options = list(dom = 'Bfrtip', 
                              pageLength = nrow(tab.leitos.mun),
@@ -479,7 +479,7 @@ library(DT)
 DT::datatable(tab.leitos.mun.hosp,
               caption = 'Número de leitos por instituição, SUS e Não-SUS por porte - RS', 
               # filter = 'top', 
-              editable = TRUE,
+              editable = FALSE,
               extensions = 'Buttons',
               options = list(dom = 'Bfrtip', 
                              pageLength = nrow(tab.leitos.mun.hosp),
